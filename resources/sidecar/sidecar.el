@@ -201,16 +201,58 @@ lines around a long one are Org's, not the block's output."
     (widen)
     (and (sidecar--agent-overlays (point-min) (point-max)) t)))
 
+;; The bar beside agent text is drawn a line at a time, by an overlay on
+;; the line's first character.  `line-prefix' on the agent overlay would
+;; draw it too, but hides the `line-prefix' of `org-indent-mode', a text
+;; property, and with it the indentation.  On a graphic frame the bar is
+;; in the fringe; a terminal has none, and shows it before the text.
+
+(when (fboundp 'define-fringe-bitmap)
+  (define-fringe-bitmap 'sidecar-bar [#b11100000] nil nil '(center t)))
+
+(defconst sidecar--bar
+  (propertize "▎" 'face 'sidecar-agent
+              'display '(when (display-graphic-p)
+                          left-fringe sidecar-bar sidecar-agent))
+  "The bar of a line the agent wrote.")
+
+(defun sidecar--bars (beg end)
+  "Draw again the bars of the lines of BEG..END."
+  (save-excursion
+    (save-restriction
+      (widen)
+      (let ((b (progn (goto-char (min beg (point-max)))
+                      (line-beginning-position)))
+            (e (progn (goto-char (min end (point-max)))
+                      (min (1+ (line-end-position)) (point-max)))))
+        (dolist (o (overlays-in b e))
+          (when (overlay-get o 'sidecar-bar)
+            (delete-overlay o)))
+        (goto-char b)
+        (while (< (point) e)
+          (when (sidecar--agent-overlays
+                 (point) (min (1+ (line-end-position)) (point-max)))
+            ;; on the first character, and moving with it
+            (let ((o (make-overlay (point) (1+ (point)) nil t nil)))
+              (overlay-put o 'sidecar-bar t)
+              (overlay-put o 'evaporate t)
+              (overlay-put o 'before-string sidecar--bar)))
+          (forward-line 1))))))
+
+(defun sidecar--on-agent-change (_overlay after beg end &optional _len)
+  "A modification hook of the agent overlays: the lines may have changed."
+  (when after
+    (sidecar--bars beg end)))
+
 (defun sidecar--overlay (beg end)
   "Mark BEG..END as written by the agent."
   (when (< beg end)
-    (let ((o (make-overlay beg end nil t nil))
-          (bar (propertize "▎" 'face 'sidecar-agent)))
+    (let ((o (make-overlay beg end nil t nil)))
       (overlay-put o 'sidecar-agent t)
       (overlay-put o 'evaporate t)
-      (overlay-put o 'line-prefix bar)
-      (overlay-put o 'wrap-prefix bar)
+      (overlay-put o 'modification-hooks '(sidecar--on-agent-change))
       (overlay-put o 'help-echo "Written by the agent; M-x sidecar-accept")
+      (sidecar--bars beg end)
       o)))
 
 (defun sidecar--blocks-touching (beg end)
@@ -250,6 +292,7 @@ An overlay that reaches past it keeps what is outside."
              (move-overlay o ob beg)
              (when (> oe end) (sidecar--overlay end oe)))
             (t (move-overlay o end oe)))))
+  (sidecar--bars beg end)
   (force-mode-line-update))
 
 (defun sidecar-accept (beg end)
@@ -309,6 +352,7 @@ Accepted text is no longer asked about before it runs."
       (save-restriction
         (widen)
         (remove-overlays (point-min) (point-max) 'sidecar-agent t)
+        (remove-overlays (point-min) (point-max) 'sidecar-bar t)
         (dolist (text texts)
           (goto-char (point-min))
           (when (search-forward text nil t)
