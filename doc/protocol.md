@@ -33,6 +33,28 @@ A run has three phases:
   `org-babel-eval-error-notify`; a non-zero exit makes the status
   `error`. A block that signals ends with `error` and `:error`.
 
+An async run ends when its session prints the end marker ob-comint typed
+after the block. Emacs looks at the sessions of the runs still waiting
+once a second:
+
+- A session at its prompt for `sidecar-async-stall-seconds` (5), with
+  nothing running and the end marker not printed, gets the marker again,
+  once, and the run ends as usual. A command of the block read the
+  session's input and took the marker (`podman compose run`, `ssh`,
+  `read`); a `problem` says so. A remote session is only seen at its
+  prompt, not whether something runs there.
+- A session that was killed, or whose process ended, ends the run with
+  `error`, `:error`, and `:output`: what it printed until then.
+
+A block sent to a terminal with devops.el's `devops-run-in-terminal` is
+a run too, with `start` and `end` and no `async`. Its end has
+`:terminal`, `:exit` when the shell told it, and as `:output` what the
+terminal showed: the command as typed, then what it printed. Nothing
+lands under `#+RESULTS`. The gate asks as for any run. The end comes
+when the shell says the command is over (OSC 133, ghostel's shell
+integration). Without that, a local terminal ends the run when nothing
+runs in it any more, and a remote one only when it is closed.
+
 `:id` is 12 hex digits, made by Emacs per run. `:parent` is the id of the
 run that caused this one, for a block run to resolve a `:var` reference.
 `:line` is the `#+begin_src` line when the block ran.

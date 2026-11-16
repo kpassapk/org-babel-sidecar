@@ -42,7 +42,7 @@
       "start" (update-in model [:runs id] merge fields {:body (:body e) :started (:time e) :status "running"})
       "async" (update-in model [:runs id] assoc :async true)
       "end"   (let [model (update-in model [:runs id] merge
-                                     (select-keys e [:status :ms :output :exit :stderr :error])
+                                     (select-keys e [:status :ms :output :exit :stderr :error :terminal])
                                      {:ended (:time e)})]
                 (cond-> model
                   (= "error" (:status e))

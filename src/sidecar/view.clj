@@ -414,7 +414,7 @@
                 (path-field "where" (str (:file run) ":" (:line run)) width)
                 (field "heading" (str/join " / " (:outline run)))
                 (field "started" (clock (:started run)))
-                (field "run" (str id (when (:async run) "  async") (when (:parent run) (str "  for " (:parent run)))))]
+                (field "run" (str id (when (:async run) "  async") (when (:terminal run) "  terminal") (when (:parent run) (str "  for " (:parent run)))))]
                (when (:error run) [(field "error" (paint :err (:error run)))])
                ["" (section (str "source · " (:lang run)) width)]
                (map #(str " " %) (clean (:body run)))

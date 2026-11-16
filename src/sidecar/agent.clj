@@ -87,7 +87,7 @@
     (:file e) (assoc :file (str (fs/file-name (:file e))))))
 
 (defn- run-event [e]
-  (for-feed e [:phase :status :id :file :line :name :lang :outline :parent :ms :exit :async]))
+  (for-feed e [:phase :status :id :file :line :name :lang :outline :parent :ms :exit :async :terminal]))
 
 (defn handle-event!
   "Write Emacs event `e` to the feed of the agent on its file, if there is one."

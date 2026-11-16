@@ -49,6 +49,13 @@ A longer output keeps its first and last halves."
   :type 'integer
   :group 'sidecar)
 
+(defcustom sidecar-async-stall-seconds 5
+  "How long an async session may sit at its prompt, its run not ended.
+After that the run's end marker is sent to the session again: a command
+of the block read the session's input and took the marker with it."
+  :type 'number
+  :group 'sidecar)
+
 (defvar sidecar-confirm-function #'sidecar--confirm
   "Called with BUFFER, BEG, END and WHAT to ask whether a block may run.
 WHAT says why it is asked.  Returns non-nil for yes.")
@@ -67,6 +74,9 @@ Global, not buffer-local: `revert-buffer' kills buffer-locals.")
 
 (defvar sidecar--pending-async nil
   "Async runs whose result has not arrived, as (MARKER . RUN).")
+
+(defvar sidecar--async-timer nil
+  "The timer that watches the sessions of `sidecar--pending-async'.")
 
 (defvar sidecar--in-async-filter nil
   "Non-nil while ob-comint inserts the result of an async run.")
@@ -548,7 +558,10 @@ holds agent text you have not accepted."))
              (run sidecar--run))
         (if (plist-get run :async)
             (progn
+              ;; ob-comint's placeholder, the id its markers carry
+              (setq run (plist-put run :uuid (and (stringp value) value)))
               (push (cons (copy-marker pos) run) sidecar--pending-async)
+              (sidecar--async-watch)
               (apply #'sidecar--publish "run"
                      (append (list :phase "async" :status "running")
                              (sidecar--run-fields run))))
@@ -564,10 +577,13 @@ holds agent text you have not accepted."))
                           (and value (format "%s" value)))))))
         value))))
 
-(defun sidecar--before-async-register (&rest _)
-  "Before `org-babel-comint-async-register': the run in progress is async."
+(defun sidecar--before-async-register (&optional session &rest _)
+  "Before `org-babel-comint-async-register': the run in progress is async,
+in SESSION."
   (when sidecar--run
-    (setq sidecar--run (plist-put sidecar--run :async t))))
+    (setq sidecar--run (plist-put sidecar--run :async t))
+    (setq sidecar--run (plist-put sidecar--run :session
+                                  (and session (get-buffer session))))))
 
 (defun sidecar--before-error-notify (exit-code stderr)
   "Before `org-babel-eval-error-notify': keep EXIT-CODE and STDERR."
@@ -612,6 +628,178 @@ operator's, and an async run ends here."
                           :output (sidecar--cap
                                    (sidecar--results-text (car pending))))
         (set-marker (car pending) nil)))))
+
+;;;; ---------------------------------------------------------------- stalled async runs
+
+;; ob-comint types three things into the session: an echo of a start
+;; marker, the block, and an echo of an end marker.  The result arrives
+;; when the end marker is printed.  A command of the block that reads its
+;; standard input (`podman compose run', `ssh', `read') takes the echo of
+;; the end marker as its input, and then the result never arrives, though
+;; the block is over.  A session that is killed does the same.
+
+(defun sidecar--async-marker (kind uuid)
+  "A regexp for ob-comint's KIND marker, start or end, of the run UUID,
+as the session prints it: the line ends there.  In the input that was
+typed, a quote follows."
+  (format "ob_comint_async_[a-z]+_%s_%s$" kind (regexp-quote uuid)))
+
+(defun sidecar--async-printed (session uuid)
+  "What SESSION printed since the start marker of the run UUID, or nil."
+  (when (buffer-live-p session)
+    (with-current-buffer session
+      (save-excursion
+        (save-match-data
+          (goto-char (point-max))
+          (when (re-search-backward (sidecar--async-marker "start" uuid) nil t)
+            (forward-line 1)
+            (buffer-substring-no-properties (point) (point-max))))))))
+
+(defun sidecar--async-end-input (session uuid)
+  "The line typed into SESSION to print the end marker of the run UUID."
+  (with-current-buffer session
+    (save-excursion
+      (save-match-data
+        (goto-char (point-max))
+        (when (re-search-backward
+               (format "ob_comint_async_[a-z]+_end_%s." (regexp-quote uuid))
+               nil t)
+          (forward-line 0)
+          (when (looking-at comint-prompt-regexp)
+            (goto-char (match-end 0)))
+          (buffer-substring-no-properties (point) (line-end-position)))))))
+
+(defun sidecar--async-state (run)
+  "What the session of the async RUN does: `gone', `idle' or nil.
+`idle' is at its prompt with nothing running, the run's start marker
+printed and its end marker not.  Nil when that cannot be told."
+  (let* ((session (plist-get run :session))
+         (uuid (plist-get run :uuid))
+         (proc (and (buffer-live-p session) (get-buffer-process session))))
+    (cond
+     ((not (and session uuid)) nil)
+     ((not (and proc (process-live-p proc))) 'gone)
+     (t
+      (with-current-buffer session
+        (save-excursion
+          (save-match-data
+            (goto-char (point-max))
+            (forward-line 0)
+            (and (looking-at comint-prompt-regexp)
+                 (= (match-end 0) (point-max))
+                 ;; a remote shell is no child of this Emacs
+                 (or (file-remote-p default-directory)
+                     (not (process-running-child-p proc)))
+                 (re-search-backward (sidecar--async-marker "start" uuid)
+                                     nil t)
+                 (not (re-search-forward (sidecar--async-marker "end" uuid)
+                                         nil t))
+                 'idle))))))))
+
+(defun sidecar--async-nudge (entry)
+  "Send the end marker of the async run of ENTRY to its session again."
+  (let* ((run (cdr entry))
+         (session (plist-get run :session))
+         (line (sidecar--async-end-input session (plist-get run :uuid))))
+    (setcdr entry (plist-put run :nudged t))
+    (when line
+      (comint-send-string (get-buffer-process session) (concat line "\n"))
+      (let ((text (format "%s finished without its end marker, which was \
+sent again: a command of the block read the session's input.  Give that \
+command </dev/null."
+                          (or (plist-get run :name) "A block"))))
+        (message "sidecar: %s" text)
+        (sidecar--publish "problem" :kind "warning" :level ":warning"
+                          :source "sidecar"
+                          :file (plist-get run :file)
+                          :line (plist-get run :line)
+                          :message text)))))
+
+(defun sidecar--async-check ()
+  "End the async runs whose session is gone, and nudge the stalled ones."
+  (dolist (entry (copy-sequence sidecar--pending-async))
+    (let* ((run (cdr entry))
+           (session (plist-get run :session))
+           (state (ignore-errors (sidecar--async-state run))))
+      (cond
+       ((not (buffer-live-p (marker-buffer (car entry))))
+        (setq sidecar--pending-async (delq entry sidecar--pending-async)))
+       ((eq state 'gone)
+        (setq sidecar--pending-async (delq entry sidecar--pending-async))
+        (sidecar--run-end run "error"
+                          :async t
+                          :error "The session ended before the result arrived"
+                          :output (sidecar--cap
+                                   (sidecar--async-printed
+                                    session (plist-get run :uuid))))
+        (set-marker (car entry) nil))
+       ((plist-get run :nudged))
+       ((not (eq state 'idle))
+        (setcdr entry (plist-put run :quiet nil)))
+       (t
+        (let ((tick (buffer-chars-modified-tick session))
+              (quiet (plist-get run :quiet)))
+          (cond
+           ((not (eql tick (car quiet)))
+            (setcdr entry (plist-put run :quiet (cons tick (float-time)))))
+           ((>= (- (float-time) (cdr quiet)) sidecar-async-stall-seconds)
+            (sidecar--async-nudge entry))))))))
+  (unless sidecar--pending-async
+    (sidecar--async-unwatch)))
+
+(defun sidecar--async-watch ()
+  "Watch the sessions of the pending async runs."
+  (unless sidecar--async-timer
+    (setq sidecar--async-timer
+          (run-with-timer 1 1 (lambda ()
+                                (with-demoted-errors "sidecar: %S"
+                                  (sidecar--async-check)))))))
+
+(defun sidecar--async-unwatch ()
+  "Stop watching the sessions of the pending async runs."
+  (when sidecar--async-timer
+    (cancel-timer sidecar--async-timer)
+    (setq sidecar--async-timer nil)))
+
+;;;; ---------------------------------------------------------------- terminal runs
+
+;; devops.el's `devops-run-in-terminal' sends a block to a terminal, past
+;; `org-babel-execute-src-block': nothing lands under #+RESULTS.  It tells
+;; `devops-terminal-run-functions' the start and the end of such a run.
+
+(defvar devops-terminal-run-functions)
+
+(defvar sidecar--terminal-runs nil
+  "The terminal runs in progress, as (ID . RUN), ID devops.el's.")
+
+(defun sidecar--on-terminal-run (event run)
+  "On `devops-terminal-run-functions': the gate, then the run's events.
+EVENT is `start' or `end', and RUN devops.el's plist of the run."
+  (pcase event
+    ('start
+     (let ((pos (plist-get run :pos)))
+       (setq pos (if (markerp pos) (marker-position pos) pos))
+       (sidecar--gate pos)
+       (when (and sidecar--clients pos (sidecar--notebook-p))
+         (push (cons (plist-get run :id)
+                     (sidecar--start-run
+                      pos (save-excursion
+                            (goto-char pos)
+                            (org-babel-get-src-block-info 'no-eval))))
+               sidecar--terminal-runs))))
+    ('end
+     (when-let* ((entry (assq (plist-get run :id) sidecar--terminal-runs)))
+       (setq sidecar--terminal-runs (delq entry sidecar--terminal-runs))
+       (let ((exit (plist-get run :exit))
+             (error (plist-get run :error)))
+         (sidecar--run-end (cdr entry)
+                           (if (or error (and exit (not (eql exit 0))))
+                               "error"
+                             "done")
+                           :terminal t
+                           :exit exit
+                           :error error
+                           :output (sidecar--cap (plist-get run :output))))))))
 
 ;;;; ---------------------------------------------------------------- buffers
 
@@ -934,6 +1122,7 @@ the change starts.  One undo undoes it."
 ;;;; ---------------------------------------------------------------- install
 
 (advice-add 'org-babel-execute-src-block :around #'sidecar--around-execute)
+(add-hook 'devops-terminal-run-functions #'sidecar--on-terminal-run)
 
 (defun sidecar--hooks (on)
   "Start or stop reporting to the sidecars."
@@ -973,6 +1162,7 @@ the change starts.  One undo undoes it."
     (when sidecar--focus-timer
       (cancel-timer sidecar--focus-timer)
       (setq sidecar--focus-timer nil))
+    (sidecar--async-unwatch)
     (setq sidecar--focus nil)
     ;; nobody is left to apply an agent's edits
     (maphash (lambda (buffer _) (sidecar--detach-buffer buffer))

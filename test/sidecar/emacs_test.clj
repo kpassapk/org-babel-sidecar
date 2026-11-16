@@ -181,6 +181,10 @@
       (run-block! file "echo after-revert")
       (is (= 3 (emacs/eval! *link* "sidecar-test-asked"))))))
 
+(defn- kill-session! [name]
+  (emacs/eval! *link* (format "(let ((kill-buffer-query-functions nil)) (when (get-buffer %s) (kill-buffer %s)))"
+                              (pr-str name) (pr-str name))))
+
 (deftest async-run
   (let [file (notebook! "async.org" (str "* Slow\n#+name: slow\n#+begin_src sh :session sidecar-async :async yes :results output\n"
                                          "sleep 0.3; echo async-finished\n#+end_src\n"))
@@ -194,7 +198,58 @@
       (is (true? (:async end)))
       (is (str/includes? (str (:output end)) "async-finished"))
       (is (>= (:ms end) 300)))
-    (emacs/eval! *link* "(let ((kill-buffer-query-functions nil)) (when (get-buffer \"sidecar-async\") (kill-buffer \"sidecar-async\")))")))
+    (kill-session! "sidecar-async")))
+
+(deftest async-run-whose-end-marker-was-read
+  (testing "a command that reads the session's input takes the end marker; it is sent again"
+    (emacs/eval! *link* "(setq sidecar-async-stall-seconds 0.5)")
+    (let [file (notebook! "swallow.org" (str "* Greedy\n#+name: greedy\n#+begin_src sh :session sidecar-swallow :async yes :results output\n"
+                                             "head -n 1 >/dev/null; echo block-finished\n#+end_src\n"))
+          n    (count @*events*)]
+      (run-block! file "head -n 1")
+      (let [start (wait-for n (run? "start" nil))
+            end   (wait-for n (run? "end" (:id start)))]
+        (is (= "done" (:status end)))
+        (is (str/includes? (str (:output end)) "block-finished"))
+        (is (not (str/includes? (str (:output end)) "ob_comint_async")))
+        (is (str/includes? (str (:message (wait-for n #(and (= "problem" (:event %)) (= "sidecar" (:source %))))))
+                           "greedy finished without its end marker"))
+        (is (str/includes? (el file "(buffer-string)") "block-finished") "the result is in the notebook"))
+      (kill-session! "sidecar-swallow"))))
+
+(deftest async-run-whose-session-is-killed
+  (let [file (notebook! "gone.org" (str "* Long\n#+begin_src sh :session sidecar-gone :async yes :results output\n"
+                                        "echo before-the-end; sleep 60\n#+end_src\n"))
+        n    (count @*events*)]
+    (run-block! file "sleep 60")
+    (let [start (wait-for n (run? "start" nil))]
+      (is (wait-for n (run? "async" (:id start))))
+      (Thread/sleep 500)
+      (kill-session! "sidecar-gone")
+      (let [end (wait-for n (run? "end" (:id start)))]
+        (is (= "error" (:status end)))
+        (is (str/includes? (str (:error end)) "session ended"))))))
+
+(deftest terminal-run
+  (testing "a block devops.el sent to a terminal: its start, and its end with what the terminal showed"
+    (let [file (notebook! "terminal.org" "* Deploy\n#+name: up\n#+begin_src sh\nmake up\n#+end_src\n")
+          n    (count @*events*)
+          tell (fn [id event extra]
+                 (el file (format "(goto-char (point-min)) (search-forward \"make up\") (run-hook-with-args 'devops-terminal-run-functions '%s (append (list :id '%s :pos (org-babel-where-is-src-block-head) :body \"make up\") '%s))"
+                                  event id extra)))]
+      (tell "t1" "start" "()")
+      (let [start (wait-for n (run? "start" nil))]
+        (is (= {:file file :line 3 :name "up" :lang "sh" :outline ["Deploy"] :status "running" :body "make up"}
+               (select-keys start [:file :line :name :lang :outline :status :body])))
+        (tell "t1" "end" "(:exit 2 :output \"make up\\nno rule\")")
+        (let [end (wait-for n (run? "end" (:id start)))]
+          (is (= {:status "error" :exit 2 :terminal true :output "make up\nno rule"}
+                 (select-keys end [:status :exit :terminal :output])))))
+      (let [n (count @*events*)]
+        (tell "t2" "start" "()")
+        (let [start (wait-for n (run? "start" nil))]
+          (tell "t2" "end" "(:exit 0 :output \"ok\")")
+          (is (= "done" (:status (wait-for n (run? "end" (:id start)))))))))))
 
 (deftest results-are-unwrapped
   (let [plain #(emacs/call *link* 'sidecar--plain-result %)]
