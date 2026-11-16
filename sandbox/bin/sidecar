@@ -1,0 +1,3 @@
+#!/bin/sh
+# sidecar: the agent's commands. See `sidecar` with no arguments.
+exec bb -cp /opt/sidecar/src -m sidecar.box "$@"

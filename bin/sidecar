@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# sidecar COMMAND ARGS...: emacs-sidecar's commands, from any directory.
+#
+#   sidecar console [--dir D] [--server S] [--no-box]
+#   sidecar events  [--server S] [--json] [--count N]
+#   sidecar attach FILE [--name N] [--no-box] [--server S]
+#   sidecar image
+#   sidecar box ...        the agent's commands, as in the sandbox
+#
+# Symlink it onto PATH; it finds bb.edn through the link.
+here=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)
+exec bb --config "$here/bb.edn" "${@:-console}"

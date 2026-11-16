@@ -1,0 +1,27 @@
+{:paths ["src" "resources"]
+ :deps {io.github.kpassapk/charm.clj
+        {:git/url "https://github.com/kpassapk/charm.clj.git"
+         :git/sha "b1b40757fc12e82da87c13c362c8c5308c33df3f"}
+        ;; not published yet: a checkout beside this one
+        io.github.kpassapk/podless-emacs {:local/root "../podless-emacs"}}
+
+ :tasks
+ {console {:doc "[--dir D] [--server S]: the console: index, notebook, runs, problems, agents"
+           :bb-transient/terminal true
+           :task (exec 'sidecar.main/console)}
+  events  {:doc "[--server S] [--json] [--count N]: a line per event from Emacs, until stopped"
+           :task (exec 'sidecar.main/events)}
+  attach  {:doc "FILE [--name N] [--no-box] [--server S]: attach an agent to FILE's buffer, without the console"
+           :task (apply sidecar.main/attach *command-line-args*)
+           :requires ([sidecar.main])}
+  image   {:doc "Build the sandbox image (podman, or SIDECAR_ENGINE)"
+           :task (exec 'sidecar.main/image)}
+  box     {:doc "The agent's commands, as in the sandbox: status, follow, ack, output, notebook, append, replace"
+           :task (apply sidecar.box/-main *command-line-args*)
+           :requires ([sidecar.box])}
+
+  test
+  {:doc "Run the tests; those of the Emacs side start an `emacs --batch -Q' of their own"
+   :extra-paths ["test"]
+   :requires ([sidecar.test-runner])
+   :task (sidecar.test-runner/main *command-line-args*)}}}

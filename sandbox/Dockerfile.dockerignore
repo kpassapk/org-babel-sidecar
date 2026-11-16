@@ -1,0 +1,5 @@
+*
+!src/sidecar/box.clj
+!src/sidecar/feed.clj
+!sandbox/bin
+!sandbox/skills
