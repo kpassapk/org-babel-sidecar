@@ -2,16 +2,18 @@
  :deps {io.github.timokramer/charm.clj
         {:git/url "https://github.com/TimoKramer/charm.clj.git"
          :git/sha "2116edb562624f726348380f893b0df5be77cd26"}
-        ;; not published yet: a checkout beside this one
-        io.github.kpassapk/podless-emacs {:local/root "../podless-emacs"}}
+        io.github.kpassapk/podless-emacs
+        {:git/url "https://github.com/kpassapk/podless-emacs.git"
+         :git/sha "ded23ac738013ff1e7a274ab1bcdd4d851e64d08"}}
 
  :tasks
  {console {:doc "[--dir D] [--server S]: the console: index, notebook, runs, problems, agents"
            :bb-transient/terminal true
+           :bb-transient/singleton true
            :task (exec 'sidecar.main/console)}
   events  {:doc "[--server S] [--json] [--count N]: a line per event from Emacs, until stopped"
            :task (exec 'sidecar.main/events)}
-  attach  {:doc "FILE [--name N] [--no-box] [--server S]: attach an agent to FILE's buffer, without the console"
+  attach  {:doc "FILE [--name N] [--no-box] [--root D] [--server S]: attach an agent to FILE's buffer, without the console"
            :task (apply sidecar.main/attach *command-line-args*)
            :requires ([sidecar.main])}
   image   {:doc "Build the sandbox image (podman, or SIDECAR_ENGINE)"

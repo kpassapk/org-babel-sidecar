@@ -41,8 +41,6 @@ connection, and its hooks are removed when the sidecar exits.
 
 - babashka 1.13.226 or later
 - Emacs 29 or later, running a server (`M-x server-start`, or a daemon)
-- A checkout of podless-emacs beside this one (`../podless-emacs`); it is
-  not published yet
 - For agents: podman or docker, and `CLAUDE_CODE_OAUTH_TOKEN` (from
   `claude setup-token`) or `ANTHROPIC_API_KEY` in the sidecar's environment
 
@@ -100,7 +98,7 @@ Under 100 columns only the pane with the keyboard is shown.
 
 | Key | Does |
 |---|---|
-| `tab` `1`–`5` | move between panes |
+| `←` `→`, `tab`, `1`–`5` | move between panes; the arrows and `tab` go around in a cycle |
 | `j` `k` `↑` `↓`, `space` `PgUp`, `g` `G` | move, page, first and last |
 | `⏎` | index: show the notebook; notebook: go there in Emacs; runs, problems, agents: detail |
 | `e` | show it in Emacs |
@@ -194,7 +192,7 @@ and podless's own listener stay too, as podless-emacs documents.
 |---|---|
 | `sidecar console [--dir D] [--server S] [--no-box]` | the console |
 | `sidecar events [--server S] [--json] [--count N]` | a line per event |
-| `sidecar attach FILE [--name N] [--no-box] [--server S]` | attach an agent without the console, until stopped |
+| `sidecar attach FILE [--name N] [--no-box] [--root D] [--server S]` | attach an agent without the console, until stopped. `--root` is where its feed and outbox go, as `D/NAME/feed` and `D/NAME/outbox` (default: the cache), for a container of your own that mounts them |
 | `sidecar image` | build the sandbox image (`SIDECAR_ENGINE`, `SIDECAR_IMAGE`) |
 | `sidecar box …` | the agent's commands, on the host |
 

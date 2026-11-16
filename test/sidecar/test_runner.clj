@@ -7,7 +7,8 @@
     sidecar.view-test
     sidecar.feed-test
     sidecar.emacs-test
-    sidecar.agent-test])
+    sidecar.agent-test
+    sidecar.main-test])
 
 (defn main
   "Run the suites named in `args`, by their last part (`emacs`, `view`...),

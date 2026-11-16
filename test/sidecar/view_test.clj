@@ -118,6 +118,12 @@
            (get-in (-> s (key "3") (key "j") (key :enter)) [:ui :detail])))
     (is (nil? (get-in (-> s (key "3") (key :enter) (key :escape)) [:ui :detail])))
     (is (= :notebook (get-in (key s :tab) [:ui :pane])))
+    (is (= [:notebook :runs :problems :agents :index]
+           (map #(get-in % [:ui :pane]) (rest (take 6 (iterate #(key % :right) s)))))
+        "→ goes through the panes and around")
+    (is (= [:agents :problems :runs :notebook :index]
+           (map #(get-in % [:ui :pane]) (rest (take 6 (iterate #(key % :left) s)))))
+        "← goes the other way and around")
     (let [filtered (-> s (assoc :scanned (:entries s)) (key "/") (key "s") (key "c") (key "r"))]
       (is (= ["scratch"] (map :title (:entries filtered))))
       (is (= 2 (count (:entries (key filtered :escape))))))

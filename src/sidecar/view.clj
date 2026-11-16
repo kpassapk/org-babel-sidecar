@@ -457,7 +457,7 @@
 (def ^:private help-lines
   [" The console shows what your Emacs is doing with org notebooks."
    ""
-   " tab, shift-tab, 1-5   move between panes"
+   " ← →, tab, 1-5         move between panes, around in a cycle"
    " j k ↑ ↓               move        space, PgDn, PgUp   page"
    " g G                   first, last"
    " ⏎                     index: show the notebook    notebook: go there in Emacs"
@@ -469,7 +469,7 @@
    " s                     agents: open the agent's terminal (in tmux), or say how"
    " d                     agents: detach"
    " r                     read the index and the notebook again"
-   " esc, h, ←             back        q, C-c   quit"
+   " esc, h                back        q, C-c   quit"
    ""
    " Index marks:  ◉ you are here   ● open in Emacs   * unsaved"
    "               ▶ running   ✗ blocks whose last run failed   @ agent"

@@ -45,30 +45,51 @@
                                           (when (zero? (swap! left dec)) (deliver done true))))})]
     (try @done (finally (emacs/stop! link)))))
 
+(defn attach-opts
+  "The arguments of `sidecar attach`, as a map: :file, :name, :server,
+  :root, :box?; :bad is an argument it does not know."
+  [args]
+  (loop [[a & more] args
+         opts {:box? true}]
+    (cond
+      (nil? a) opts
+      (= "--no-box" a) (recur more (assoc opts :box? false))
+      (#{"--name" "--server" "--root"} a)
+      (if (seq more)
+        (recur (rest more) (assoc opts (keyword (subs a 2)) (first more)))
+        (assoc opts :bad a))
+      (or (str/starts-with? a "-") (:file opts)) (assoc opts :bad a)
+      :else (recur more (assoc opts :file a)))))
+
 (defn attach
-  "Attach an agent to FILE's buffer and keep its feed going until stopped."
+  "Attach an agent to FILE's buffer and keep its feed going until stopped.
+  --root is the directory its feed and outbox go under, as NAME/feed and
+  NAME/outbox, for a container of the caller's own that mounts them."
   [& args]
-  (let [[file & more] args
-        opts (apply hash-map more)
-        name (get opts "--name")
-        box? (not (some #{"--no-box"} args))]
-    (when-not (and file (fs/exists? file))
-      (binding [*out* *err*] (println "usage: sidecar attach FILE [--name N] [--no-box] [--server S]"))
+  (let [{:keys [file name server root box? bad]} (attach-opts args)]
+    (when-not (and file (not bad) (fs/exists? file))
+      (binding [*out* *err*]
+        (when bad (println "error: not understood:" bad))
+        (when (and file (not (fs/exists? file))) (println "error: no file" file))
+        (println "usage: sidecar attach FILE [--name N] [--no-box] [--root D] [--server S]"))
       (System/exit 2))
     (let [mgr  (atom nil)
-          link (emacs/start! {:server (get opts "--server")
+          link (emacs/start! {:server server
                               :on-event (fn [e]
                                           (when (#{"emacs" "problem"} (:event e)) (println (event-line e)))
                                           (some-> @mgr (agent/handle-event! e)))})
           _    (reset! mgr (agent/start-polling!
-                            (agent/manager link (fn [e] (when (#{"edit" "agent"} (:event e))
-                                                          (println (event-line (assoc e :status (or (:status e) (if (:ok e) "applied" "refused"))))))))))
+                            (agent/manager link
+                                           (fn [e] (when (#{"edit" "agent"} (:event e))
+                                                     (println (event-line (assoc e :status (or (:status e) (if (:ok e) "applied" "refused")))))))
+                                           (when root {:root (str (fs/absolutize (fs/expand-home root)))}))))
           stop (fn [] (agent/stop! @mgr) (emacs/stop! link))]
       (.addShutdownHook (Runtime/getRuntime) (Thread. ^Runnable stop))
       (let [a (agent/attach! @mgr file {:name name :box? box?})]
         (println "feed  " (:feed a))
         (println "outbox" (:outbox a))
         (println (if (:shell a) (str "talk   " (:shell a)) "no sandbox: mount the two directories, or run `bb box` with SIDECAR_FEED and SIDECAR_OUTBOX"))
+        (flush)
         @(promise)))))
 
 (defn image

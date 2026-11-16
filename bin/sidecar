@@ -3,7 +3,7 @@
 #
 #   sidecar console [--dir D] [--server S] [--no-box]
 #   sidecar events  [--server S] [--json] [--count N]
-#   sidecar attach FILE [--name N] [--no-box] [--server S]
+#   sidecar attach FILE [--name N] [--no-box] [--root D] [--server S]
 #   sidecar image
 #   sidecar box ...        the agent's commands, as in the sandbox
 #

@@ -257,8 +257,8 @@
   (let [pane (get-in state [:ui :pane])
         rows (view/rows-in state pane)]
     (cond
-      (key? m :tab)                    [(cycle-pane state 1) nil]
-      (key? m "shift+tab" :backtab)    [(cycle-pane state -1) nil]
+      (key? m :tab :right)             [(cycle-pane state 1) nil]
+      (key? m "shift+tab" :backtab :left) [(cycle-pane state -1) nil]
       (some #(key? m (str %)) (range 1 6))
       [(assoc-in state [:ui :pane] (nth view/panes (dec (parse-long (:key m))))) nil]
 
@@ -269,8 +269,8 @@
       (key? m "g" :home)               [(move state pane (constantly 0)) nil]
       (key? m "G" :end)                [(move state pane (constantly Long/MAX_VALUE)) nil]
 
-      (key? m :enter "l" :right)       (open env state)
-      (key? m "h" :left)               [(assoc-in state [:ui :pane] :index) nil]
+      (key? m :enter "l")              (open env state)
+      (key? m "h")                     [(assoc-in state [:ui :pane] :index) nil]
       (key? m "e")                     (let [[file line] (target state)]
                                          [state (visit-cmd env file line)])
       (key? m "/")                     [(-> state (assoc-in [:ui :pane] :index) (assoc-in [:ui :filtering?] true)) nil]
