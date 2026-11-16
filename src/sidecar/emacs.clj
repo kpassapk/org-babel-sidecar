@@ -21,8 +21,8 @@
 
 (defn- cache-dir ^File []
   (io/file (or (System/getenv "SIDECAR_CACHE")
-               (some-> (System/getenv "XDG_CACHE_HOME") (io/file "emacs-sidecar"))
-               (io/file (System/getProperty "user.home") ".cache" "emacs-sidecar"))))
+               (some-> (System/getenv "XDG_CACHE_HOME") (io/file "org-babel-sidecar"))
+               (io/file (System/getProperty "user.home") ".cache" "org-babel-sidecar"))))
 
 (defn cache-path
   "A file or directory under the sidecar's cache directory."

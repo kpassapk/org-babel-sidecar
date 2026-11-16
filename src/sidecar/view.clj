@@ -343,7 +343,7 @@
   (let [{:keys [status info error]} (:emacs model)
         {:keys [running problems agents]} (model/summary model)]
     (line width
-          (concat [[:head " emacs-sidecar"] [:dim " · "] "emacs "]
+          (concat [[:head " org-babel-sidecar"] [:dim " · "] "emacs "]
                   (if (= "up" status)
                     [[:ok "●"] [:dim (str " " (:emacs info) " · org " (:org info)
                                           (when (:devops info) " · devops.el"))]]

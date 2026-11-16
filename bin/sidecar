@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sidecar COMMAND ARGS...: emacs-sidecar's commands, from any directory.
+# sidecar COMMAND ARGS...: org-babel-sidecar's commands, from any directory.
 #
 #   sidecar console [--dir D] [--server S] [--no-box]
 #   sidecar events  [--server S] [--json] [--count N]

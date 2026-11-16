@@ -1,0 +1,14 @@
+{:paths ["src" "resources"]
+ ;; bb.edn is what runs this; these are the same two libraries, and the
+ ;; ones babashka has built in, for the JVM and for tools that read deps.edn.
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        babashka/fs         {:mvn/version "0.5.24"}
+        babashka/process    {:mvn/version "0.5.22"}
+        cheshire/cheshire   {:mvn/version "5.13.0"}
+        io.github.timokramer/charm.clj
+        {:git/url "https://github.com/TimoKramer/charm.clj.git"
+         :git/sha "2116edb562624f726348380f893b0df5be77cd26"}
+        io.github.kpassapk/podless-emacs
+        {:git/url "https://github.com/kpassapk/podless-emacs.git"
+         :git/sha "ded23ac738013ff1e7a274ab1bcdd4d851e64d08"}}
+ :aliases {:test {:extra-paths ["test"]}}}

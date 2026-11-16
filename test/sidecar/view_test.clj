@@ -49,7 +49,7 @@
 
 (deftest wide-screen
   (let [lines (screen (assoc-in (state 110 24) [:ui :pane] :runs))]
-    (is (= [" emacs-sidecar · emacs ● 32.0.50 · org 9.8.7 · /w                                        ▶1  ✗1  @1  11:23:05"
+    (is (= [" org-babel-sidecar · emacs ● 32.0.50 · org 9.8.7 · /w                                    ▶1  ✗1  @1  11:23:05"
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             " 1 Index  2 files                       ┃  2 Notebook  host-facts.org · Host facts · unsaved · following"
             "◉* Host facts  :o… ▶1 ✗1 @host-facts 2▸ ┃  * TODO Facts                                                  :web:"
@@ -85,7 +85,7 @@
         (str w "x" h " " pane ": " (pr-str (remove #(= w (count %)) lines))))))
 
 (deftest narrow-screen-shows-one-pane
-  (is (= [" emacs-sidecar · emacs ● 32.0.50 · org 9.8.7 · /w          ▶1  ✗1  @1  11:23:05"
+  (is (= [" org-babel-sidecar · emacs ● 32.0.50 · org 9.8.7 · /w      ▶1  ✗1  @1  11:23:05"
           "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           " 1 Index   2 Notebook   3 Runs   4 Problems   5 Agents   …· unsaved · following"
           " * TODO Facts                                                              :web:"

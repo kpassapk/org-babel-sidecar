@@ -3,7 +3,7 @@
 #
 # Build from the checkout's root (`sidecar image` does this):
 #
-#   podman build -f sandbox/Dockerfile -t emacs-sidecar-sandbox .
+#   podman build -f sandbox/Dockerfile -t org-babel-sidecar-sandbox .
 #
 # The sidecar starts one per attached buffer, with two mounts and nothing
 # else of the host's:

@@ -2,7 +2,7 @@
 name: sidecar-notebook
 description: >
   Work on an org notebook together with the operator, from inside an
-  emacs-sidecar sandbox. Use this whenever the `sidecar` command exists
+  org-babel-sidecar sandbox. Use this whenever the `sidecar` command exists
   (SIDECAR_FEED is set): to read the notebook, to add or change text and
   source blocks in it, to learn what a block printed when the operator ran
   it, and to wait for what the operator does next.

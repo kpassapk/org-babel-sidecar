@@ -1,4 +1,4 @@
-;;; sidecar.el --- Emacs side of emacs-sidecar -*- lexical-binding: t; -*-
+;;; sidecar.el --- Emacs side of org-babel-sidecar -*- lexical-binding: t; -*-
 
 ;; Loaded into the operator's Emacs by the sidecar, over its podless
 ;; connection; nothing goes in an init file.  It does three things:
@@ -32,10 +32,10 @@
 (defvar podless-connection-cleanup-functions)
 
 (defconst sidecar-version "0.1.0"
-  "The version of emacs-sidecar this file belongs to.")
+  "The version of org-babel-sidecar this file belongs to.")
 
 (defgroup sidecar nil
-  "The Emacs side of emacs-sidecar."
+  "The Emacs side of org-babel-sidecar."
   :group 'org)
 
 (defface sidecar-agent

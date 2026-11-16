@@ -16,7 +16,7 @@
       (throw (ex-info "No container engine: install podman or docker, or set SIDECAR_ENGINE"
                       {:type :sidecar/no-engine}))))
 
-(defn image [] (or (System/getenv "SIDECAR_IMAGE") "emacs-sidecar-sandbox"))
+(defn image [] (or (System/getenv "SIDECAR_IMAGE") "org-babel-sidecar-sandbox"))
 
 (defn container [name] (str "sidecar-" name))
 
@@ -83,5 +83,5 @@
   "Build the sandbox image from the checkout, with the engine's output shown."
   []
   (let [root (or (project-root)
-                 (throw (ex-info "The image is built from a checkout of emacs-sidecar" {})))]
+                 (throw (ex-info "The image is built from a checkout of org-babel-sidecar" {})))]
     (p/shell {:dir root} (engine) "build" "-f" "sandbox/Dockerfile" "-t" (image) ".")))

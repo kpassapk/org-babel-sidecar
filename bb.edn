@@ -1,10 +1,5 @@
 {:paths ["src" "resources"]
- :deps {io.github.timokramer/charm.clj
-        {:git/url "https://github.com/TimoKramer/charm.clj.git"
-         :git/sha "2116edb562624f726348380f893b0df5be77cd26"}
-        io.github.kpassapk/podless-emacs
-        {:git/url "https://github.com/kpassapk/podless-emacs.git"
-         :git/sha "ded23ac738013ff1e7a274ab1bcdd4d851e64d08"}}
+ :deps {io.github.kpassapk/org-babel-sidecar {:local/root "."}}
 
  :tasks
  {console {:doc "[--dir D] [--server S]: the console: index, notebook, runs, problems, agents"

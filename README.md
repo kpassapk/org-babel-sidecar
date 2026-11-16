@@ -1,4 +1,4 @@
-# emacs-sidecar
+# org-babel-sidecar
 
 A console beside your Emacs for org notebooks with executable blocks, and
 a way to write those notebooks together with a sandboxed agent.
@@ -51,8 +51,8 @@ each block's `#+TARGET`.
 ## Install
 
 ```
-ln -s ~/src/github.com/kpassapk/emacs-sidecar/bin/sidecar ~/.local/bin/
-sidecar image          # once, for agents: builds emacs-sidecar-sandbox
+ln -s ~/src/github.com/kpassapk/org-babel-sidecar/bin/sidecar ~/.local/bin/
+sidecar image          # once, for agents: builds org-babel-sidecar-sandbox
 ```
 
 ## The console
@@ -65,7 +65,7 @@ sidecar console [--dir D] [--server S] [--no-box]
 `--server` the Emacs server's name or socket (default `server`).
 
 ```
- emacs-sidecar · emacs ● 32.0.50 · org 9.8.7 · ~/ops                                     ▶1  ✗1  @1  11:23:05
+ org-babel-sidecar · emacs ● 32.0.50 · org 9.8.7 · ~/ops                                 ▶1  ✗1  @1  11:23:05
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  1 Index  2 files                       ┃  2 Notebook  host-facts.org · Host facts · unsaved · following
 ◉* Host facts  :o… ▶1 ✗1 @host-facts 2▸ ┃  * TODO Facts                                                  :web:
