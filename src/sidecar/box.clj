@@ -48,18 +48,20 @@
 
 ;;; Reading
 
+(defn- read-again
+  "The JSON in `path`, asked up to five times: the sidecar rewrites its
+  files, and one caught empty or cut short does not parse."
+  [path]
+  (loop [tries 5]
+    (or (feed/read-json path)
+        (when (and (pos? tries) (fs/exists? (fs/parent path)))
+          (Thread/sleep 60)
+          (recur (dec tries))))))
+
 (defn- status
-  "The feed's status.json, or nil when there is no feed.  The sidecar
-  replaces the file every few seconds, and across a container's mount
-  the replacement can be seen as a missing file for a moment: a miss is
-  asked again before it is believed."
+  "The feed's status.json, or nil when there is no feed."
   [{:keys [feed]}]
-  (let [path (fs/path feed feed/status-file)]
-    (loop [tries 5]
-      (or (feed/read-json path)
-          (when (and (pos? tries) (fs/exists? feed))
-            (Thread/sleep 60)
-            (recur (dec tries)))))))
+  (read-again (fs/path feed feed/status-file)))
 
 (defn- cursor [{:keys [outbox]}] (feed/read-cursor outbox))
 
@@ -103,7 +105,8 @@
     true))
 
 (defn- write-cursor! [{:keys [outbox]} epoch seq]
-  (feed/put-json! (fs/path outbox feed/cursor-file) {:epoch epoch :seq seq}))
+  (feed/put-atomic! (fs/path outbox feed/cursor-file)
+                    (json/generate-string {:epoch epoch :seq seq})))
 
 ;;; Commands
 
@@ -138,7 +141,7 @@
 (defn- cmd-output [d args]
   (let [[opts [id]] (parse args {:flags #{:json}})
         out (when (and id (re-matches #"[0-9a-f]{6,64}" id))
-              (feed/read-json (fs/path (:feed d) "outputs" (str id ".json"))))]
+              (read-again (fs/path (:feed d) "outputs" (str id ".json"))))]
     (cond
       (nil? id)   (fail! 2 "usage: sidecar output RUN [--json]")
       (nil? out)  (fail! 1 "error: no output for run" id)
@@ -160,7 +163,7 @@
   (let [id    (str (random-uuid))
         reply (fs/path (:feed d) "replies" (str id ".json"))
         deadline (+ (System/currentTimeMillis) timeout-ms)]
-    (feed/put-json! (fs/path (:outbox d) "edits" (str id ".json")) edit)
+    (feed/put-atomic! (fs/path (:outbox d) "edits" (str id ".json")) (json/generate-string edit))
     (loop []
       (if-let [r (feed/read-json reply)]
         (if (:ok r)
@@ -208,7 +211,7 @@
   another epoch than the one followed first gives the rest of the old
   one, then starts again at 1; both are said."
   [d {:keys [epoch printed] :as st}]
-  (let [status (status d)]
+  (let [status (or (status d) (:status st))]
     (if (nil? status)
       [(cond-> st
          (not ((:noticed st) :none)) (-> (update :noticed conj :none)
@@ -234,7 +237,7 @@
             stale? (and (:attached status) (not beat?) (> (- now (:beat-at st)) stale-ms)
                         (not ((:noticed st) :stale)))]
         [(-> st
-             (assoc :epoch (:epoch status) :printed printed
+             (assoc :status status :epoch (:epoch status) :printed printed
                     :old (vec old) :before before
                     :notices (cond-> notices
                                stale? (conj (str "! the sidecar's heartbeat has not changed for "
@@ -243,7 +246,7 @@
                                (update :noticed disj :stale))
                      stale? (update :noticed conj :stale)
                      (false? (:attached status)) (update :noticed conj :detached)
-                     (:attached status) (update :noticed disj :detached :none)))
+                     (:attached status) (update :noticed disj :detached)))
          (vec events)]))))
 
 (defn- print-batch!

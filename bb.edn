@@ -1,7 +1,7 @@
 {:paths ["src" "resources"]
- :deps {io.github.kpassapk/charm.clj
-        {:git/url "https://github.com/kpassapk/charm.clj.git"
-         :git/sha "b1b40757fc12e82da87c13c362c8c5308c33df3f"}
+ :deps {io.github.timokramer/charm.clj
+        {:git/url "https://github.com/TimoKramer/charm.clj.git"
+         :git/sha "2116edb562624f726348380f893b0df5be77cd26"}
         ;; not published yet: a checkout beside this one
         io.github.kpassapk/podless-emacs {:local/root "../podless-emacs"}}
 

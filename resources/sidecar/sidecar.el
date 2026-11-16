@@ -30,8 +30,6 @@
 (declare-function podless-publish "podless")
 (declare-function podless-conn-id "podless")
 (defvar podless-connection-cleanup-functions)
-(defvar podless--conn)
-(defvar podless--owner)
 
 (defconst sidecar-version "0.1.0"
   "The version of emacs-sidecar this file belongs to.")
@@ -103,17 +101,16 @@ its base buffer's."
 
 (defun sidecar--publish (event &rest fields)
   "Send EVENT with FIELDS, a plist, to every sidecar.
-An event made while one sidecar's request is served is still for all of
-them, so the publish is taken out of the request."
+A broadcast: an event made while one sidecar's request is served is
+still for all of them."
   (when sidecar--clients
     (condition-case err
-        (let ((podless--conn nil)
-              (podless--owner nil))
-          (podless-publish
-           "sidecar"
-           (append (list :event event
-                         :time (format-time-string "%FT%T.%3N%z"))
-                   fields)))
+        (podless-publish
+         "sidecar"
+         (append (list :event event
+                       :time (format-time-string "%FT%T.%3N%z"))
+                 fields)
+         t)
       (error (message "sidecar: %s not sent: %s"
                       event (error-message-string err))))))
 

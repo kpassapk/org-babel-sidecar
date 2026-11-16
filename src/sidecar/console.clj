@@ -318,9 +318,11 @@
     (cond
       (msg/window-size? m)
       (do
-        ;; charm redraws only the lines that changed, against what it
-        ;; believes is on screen, and after a resize of the alternate
-        ;; screen that belief is wrong.  Clear the terminal and draw one
+        ;; charm.clj (as of 2116edb) redraws only the lines that changed,
+        ;; against what it believes is on screen.  On a resize it re-wraps
+        ;; that belief to the new width, as a terminal reflows its normal
+        ;; screen; the alternate screen is not reflowed, so the belief is
+        ;; wrong and stale text stays.  Clear the terminal and draw one
         ;; empty frame: the next one, a tick later, draws every line.
         (doto System/out (.print "\u001b[2J\u001b[H") (.flush))
         [(clamp (assoc state :width (:width m) :height (:height m) :resized? true)) nil])

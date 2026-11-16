@@ -7,7 +7,7 @@ One babashka process attaches to the Emacs you are running, through
 [podless-emacs](https://github.com/kpassapk/podless-emacs), and does two
 things:
 
-- **A console** ([charm.clj](https://github.com/kpassapk/charm.clj)): the
+- **A console** ([charm.clj](https://github.com/TimoKramer/charm.clj)): the
   org files of a directory, the outline of one notebook, every block run
   with its output, what went wrong, and the agents attached.
 - **An agent on a buffer**: a container with no credentials reads the

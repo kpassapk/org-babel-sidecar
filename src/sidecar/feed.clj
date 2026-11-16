@@ -43,8 +43,10 @@
       (json/parse-string (slurp (str path)) true))
     (catch Exception _ nil)))
 
-(defn put!
-  "Write `text` to `path` so that a reader sees the old file or the new."
+(defn put-atomic!
+  "Write `text` to `path` by renaming a finished file onto it: a reader on
+  the same filesystem sees the old file or the new, never part of one.
+  For what the sandbox writes and the host reads."
   [path text]
   (fs/create-dirs (fs/parent path))
   (let [tmp (fs/path (fs/parent path) (str "." (fs/file-name path) "." (random-uuid) ".tmp"))]
@@ -53,6 +55,22 @@
                 (into-array java.nio.file.CopyOption
                             [StandardCopyOption/ATOMIC_MOVE StandardCopyOption/REPLACE_EXISTING]))
     path))
+
+(defn put!
+  "Write `text` to `path` in place, in one write.  For what the host
+  writes and the sandbox reads: a file replaced by rename reads as missing
+  for some hundred milliseconds through a container's mount (podman on
+  macOS: 149 of 180 reads missed a file renamed over four times a second,
+  none one rewritten in place).  A reader may instead catch the file
+  empty or cut short for an instant, so readers of JSON ask again when it
+  does not parse."
+  [path text]
+  (fs/create-dirs (fs/parent path))
+  (Files/write (fs/path path) (.getBytes (str text) "UTF-8")
+               (into-array StandardOpenOption [StandardOpenOption/CREATE
+                                               StandardOpenOption/WRITE
+                                               StandardOpenOption/TRUNCATE_EXISTING]))
+  path)
 
 (defn put-json! [path x] (put! path (json/generate-string x)))
 
